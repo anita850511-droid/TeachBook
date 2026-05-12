@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>泰宇出版 - 教用書版次查詢系統 v5.3 (標題除錯版)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        body { font-family: '微軟正黑體', sans-serif; background-color: #f3f4f6; }
+        .tab-active { border-bottom: 3px solid #3b82f6; color: #2563eb; background-color: #eff6ff; }
+        .tab-inactive { color: #6b7280; }
+        .tab-inactive:hover { color: #374151; background-color: #f9fafb; }
+        input::-webkit-outer-spin-button,
+        input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+
+    <div class="max-w-7xl mx-auto">
+        <div class="bg-white rounded-lg shadow-sm p-6 mb-6 border-l-4 border-blue-600">
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div>
+                    <h1 class="text-2xl font-bold text-gray-800">📦 泰宇出版 - 教用書版次查詢系統 v5.3</h1>
+                    <p class="text-gray-500 mt-1">增強相容性：支援更多標題名稱，並新增「讀取失敗診斷」功能</p>
+                </div>
+                
+                <div class="bg-yellow-50 p-4 rounded-lg border border-yellow-200 w-full md:w-auto">
+                    <label class="block text-sm font-bold text-yellow-800 mb-1">步驟 0：載入書號對照表</label>
+                    <input type="file" id="dbUpload" accept=".xlsx, .xls, .csv" onchange="handleDbUpload(this)" 
+                        class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-yellow-100 file:text-yellow-700 hover:file:bg-yellow-200 transition-colors">
+                    <p id="dbStatus" class="text-xs text-red-500 mt-1 font-bold">❌ 尚未載入資料庫</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="flex mb-4 bg-white rounded-t-lg border-b border-gray-200 overflow-hidden shadow-sm">
+            <button id="tabOrder" onclick="switchTab('order')" class="tab-active flex-1 px-6 py-4 font-bold text-lg focus:outline-none transition-colors">
+                📊 撿貨合併總表 (匯出 Excel)
+            </button>
+            <button id="tabSearch" onclick="switchTab('search')" class="tab-inactive flex-1 px-6 py-4 font-bold text-lg focus:outline-none transition-colors">
+                🔍 一般查詢模式
+            </button>
+        </div>
+
+        <div id="panelOrder" class="bg-white rounded-b-lg shadow-sm p-6 mb-6">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div class="lg:col-span-1 space-y-4">
+                    <div>
+                        <label class="block text-gray-700 font-bold mb-2">步驟 1：貼上訂單資料 (4欄)</label>
+                        <p class="text-xs text-gray-500 mb-2">
+                            請從 Excel 複製<span class="text-red-600 font-bold">四欄</span>資料：<br>
+                            1. <span class="text-blue-600 font-bold">書號</span> (如 59974)<br>
+                            2. <span class="text-purple-600 font-bold">版次</span> (如 A)<br>
+                            3. <span class="text-red-600 font-bold">數量</span> (數字)<br>
+                            4. <span class="text-gray-500 font-bold">備註</span> (選填)
+                        </p>
+                        <textarea id="orderInput" rows="12" 
+                            class="block w-full p-3 border border-gray-300 rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm font-mono disabled:bg-gray-100 disabled:cursor-not-allowed"
+                            placeholder="請先完成步驟 0 載入資料庫..." disabled></textarea>
+                    </div>
+                    <div class="flex space-x-2">
+                        <button id="btnProcess" onclick="processOrder()" disabled class="flex-1 bg-gray-400 text-white py-3 rounded-lg font-bold shadow-md cursor-not-allowed transition-all">
+                            ⚡ 請先載入資料庫
+                        </button>
+                        <button onclick="clearAll()" class="px-4 py-3 bg-gray-200 text-gray-600 rounded-lg hover:bg-gray-300 font-medium">
+                            清空
+                        </button>
+                    </div>
+                </div>
+
+                <div class="lg:col-span-2 flex flex-col h-full">
+                    <div class="flex justify-between items-end mb-2">
+                        <label class="block text-gray-700 font-bold">步驟 2：總撿貨單</label>
+                        <button id="exportBtn" onclick="exportToExcel()" disabled 
+                            class="bg-green-600 text-white px-6 py-2 rounded-lg font-bold shadow hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center transition-all">
+                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                            匯出 Excel
+                        </button>
+                    </div>
+                    
+                    <div class="flex-1 border border-gray-200 rounded-lg overflow-auto bg-gray-50 relative" style="max-height: 600px;">
+                        <table class="min-w-full divide-y divide-gray-200 relative">
+                            <thead class="bg-gray-100 sticky top-0 z-10">
+                                <tr>
+                                    <th class="px-3 py-2 text-left text-xs font-bold text-gray-600 bg-blue-50 w-32">教用1 / 指引</th>
+                                    <th class="px-3 py-2 text-left text-xs font-bold text-gray-600 bg-blue-50 w-24">教用2</th>
+                                    <th class="px-3 py-2 text-left text-xs font-bold text-red-600 w-16">數量</th>
+                                    <th class="px-3 py-2 text-left text-xs font-bold text-gray-600">備註 (含數量)</th>
+                                    <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 w-32">學用 (來源溯源)</th>
+                                    <th class="px-3 py-2 text-left text-xs font-medium text-gray-500">系統狀態</th>
+                                </tr>
+                            </thead>
+                            <tbody id="orderResultBody" class="bg-white divide-y divide-gray-200">
+                                <tr>
+                                    <td colspan="6" class="px-6 py-10 text-center text-gray-400">
+                                        等待資料輸入...
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="panelSearch" class="bg-white rounded-b-lg shadow-sm p-6 mb-6 hidden">
+            <div class="relative max-w-2xl mx-auto">
+                <input type="text" id="searchInput" disabled
+                    class="block w-full pl-4 pr-3 py-3 border border-gray-300 rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100" 
+                    placeholder="請先載入資料庫...">
+            </div>
+            <div class="mt-6 overflow-x-auto border rounded-lg">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">學用書號</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">教用1</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">教用2</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">授課指引/詳解本</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">系統備註</th>
+                        </tr>
+                    </thead>
+                    <tbody id="searchResultBody" class="bg-white divide-y divide-gray-200"></tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // === 全域變數 ===
+        let dbData = {}; 
+        let finalList = []; 
+        let isDbLoaded = false;
+
+        // === 1. 資料庫匯入邏輯 (v5.3 增強相容性與診斷) ===
+        function handleDbUpload(input) {
+            const file = input.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, {type: 'array'});
+                const firstSheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[firstSheetName];
+                const jsonData = XLSX.utils.sheet_to_json(worksheet, {defval: ""});
+
+                if (jsonData.length === 0) {
+                    alert("錯誤：讀取到的 Excel 資料為空！");
+                    return;
+                }
+
+                // --- 1. 定義欄位名稱 (大幅擴充相容性) ---
+                const keys = {
+                    // baseId 現在包含「學用書號」與「學用書號(必要)」以支援合併檔
+                    baseId:   ['學用書號', '學用書號(必要)', '書號', 'Code', '料號', 'ISBN', 'Student'],  
+                    // version 專門對應「學用」欄位 (因為原始檔用「學用」來當作版次欄位名)
+                    version:  ['學用', '版次', 'Version', 'Ver', '版別'],   
+                    teacher:  ['教用1', '教用', 'Teacher', '教師用書', '教冊', '教用書號'], 
+                    teacher2: ['教用2', 'Teacher2', '教用二', '教用書號2'],
+                    guide:    ['授課指引or詳解本', '設課指引or詳解本', '指引', '授課指引', 'Guide', '指引書號'],
+                    memo:     ['備註', '系統備註', '狀況', 'Memo', '說明']
+                };
+
+                const findVal = (row, keyList) => {
+                    const rowKeys = Object.keys(row);
+                    for (let k of keyList) {
+                        // 1. 完全比對
+                        if (row[k] !== undefined) return row[k];
+                        // 2. 去空白後比對
+                        const match = rowKeys.find(rk => rk.trim() === k);
+                        if (match) return row[match];
+                    }
+                    return '';
+                };
+                
+                dbData = {};
+                let count = 0;
+                let sampleKey = "";
+
+                jsonData.forEach(row => {
+                    // 抓取基礎書號 (並去除 Excel 可能產生的 .0)
+                    let rawBaseId = findVal(row, keys.baseId).toString().trim();
+                    let cleanBaseId = rawBaseId.replace(/\.0$/, ''); 
+
+                    // 抓取版次
+                    let verCode = findVal(row, keys.version).toString().trim();
+
+                    // 組合完整書號 (Key)
+                    let fullCode = "";
+                    if (cleanBaseId) {
+                        // 如果書號已經包含版次 (例如合併檔的 "59974A")
+                        // 且 verCode (版次欄) 是空的，或是書號結尾不是 verCode (避免重複疊加)
+                        if (verCode && !cleanBaseId.endsWith(verCode)) {
+                            fullCode = cleanBaseId + verCode;
+                        } else {
+                            fullCode = cleanBaseId;
+                        }
+                    }
+
+                    if (fullCode) {
+                        // --- 2. 處理教用1 (書號 + 教用代碼) ---
+                        let teacherRaw = findVal(row, keys.teacher).toString().trim();
+                        let finalTeacher = "";
+                        
+                        if (teacherRaw) {
+                            if (!teacherRaw.startsWith(cleanBaseId)) {
+                                finalTeacher = cleanBaseId + teacherRaw;
+                            } else {
+                                finalTeacher = teacherRaw;
+                            }
+                        }
+
+                        dbData[fullCode] = {
+                            teacher: finalTeacher, 
+                            teacher2: findVal(row, keys.teacher2).toString().trim(),
+                            guide: findVal(row, keys.guide).toString().trim(),
+                            sysMemo: findVal(row, keys.memo).toString().trim()
+                        };
+                        count++;
+                        if(count === 1) sampleKey = fullCode;
+                    }
+                });
+
+                // --- 3. 結果診斷與回報 ---
+                const statusElem = document.getElementById('dbStatus');
+                
+                if (count > 0) {
+                    // 成功
+                    isDbLoaded = true;
+                    statusElem.innerHTML = `✅ 已載入 ${count} 筆資料`;
+                    statusElem.className = "text-xs text-green-600 mt-1 font-bold";
+                    
+                    document.getElementById('orderInput').disabled = false;
+                    document.getElementById('orderInput').placeholder = "格式範例：\n59974\tA\t5\t急件\n2204\tA\t3\t(自動組合)";
+                    document.getElementById('searchInput').disabled = false;
+                    document.getElementById('searchInput').placeholder = "輸入書號查詢...";
+                    
+                    const btnProcess = document.getElementById('btnProcess');
+                    btnProcess.disabled = false;
+                    btnProcess.className = "flex-1 bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 font-bold shadow-md transition-transform transform active:scale-95";
+                    btnProcess.innerText = "⚡ 開始分析與拆單";
+
+                    alert(`成功匯入 ${count} 筆資料！\n\n[系統測試]\n第一筆書號為：${sampleKey}\n(若查詢不到資料，請檢查此書號格式是否符合預期)`);
+                } else {
+                    // 失敗：進行診斷
+                    isDbLoaded = false;
+                    statusElem.innerHTML = `⚠️ 讀取失敗 (0筆)`;
+                    statusElem.className = "text-xs text-red-600 mt-1 font-bold";
+
+                    // 抓出檔案實際的標題，幫使用者除錯
+                    const actualHeaders = jsonData.length > 0 ? Object.keys(jsonData[0]).join(", ") : "無法識別";
+                    
+                    alert(`❌ 匯入失敗！系統找不到有效的「書號」欄位。\n\n[系統診斷]\n您檔案中的標題是：\n${actualHeaders}\n\n[解決方法]\n1. 請確認標題沒有亂碼 (建議另存為 .xlsx)\n2. 請確認包含以下任一關鍵字：書號, 學用書號, Code`);
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        // === 2. 介面切換與基礎功能 ===
+        function switchTab(tab) {
+            const orderBtn = document.getElementById('tabOrder');
+            const searchBtn = document.getElementById('tabSearch');
+            const panelOrder = document.getElementById('panelOrder');
+            const panelSearch = document.getElementById('panelSearch');
+
+            if (tab === 'order') {
+                orderBtn.className = 'tab-active flex-1 px-6 py-4 font-bold text-lg focus:outline-none transition-colors';
+                searchBtn.className = 'tab-inactive flex-1 px-6 py-4 font-bold text-lg focus:outline-none transition-colors';
+                panelOrder.classList.remove('hidden');
+                panelSearch.classList.add('hidden');
+            } else {
+                orderBtn.className = 'tab-inactive flex-1 px-6 py-4 font-bold text-lg focus:outline-none transition-colors';
+                searchBtn.className = 'tab-active flex-1 px-6 py-4 font-bold text-lg focus:outline-none transition-colors';
+                panelOrder.classList.add('hidden');
+                panelSearch.classList.remove('hidden');
+            }
+        }
+
+        function clearAll() {
+            document.getElementById('orderInput').value = '';
+            document.getElementById('orderResultBody').innerHTML = '<tr><td colspan="6" class="px-6 py-10 text-center text-gray-400">請輸入資料...</td></tr>';
+            document.getElementById('exportBtn').disabled = true;
+            finalList = [];
+        }
+
+        const cleanVal = (val) => (val === '0' || val === '0.0' || !val) ? '' : val;
+
+        function splitGuideCodes(rawString) {
+            if (!rawString) return [];
+            const protectedString = rawString.replace(/\+勘/g, '{{KAN}}');
+            const parts = protectedString.split('+');
+            return parts.map(p => p.trim().replace(/{{KAN}}/g, '+勘')).filter(p => p);
+        }
+
+        // === 3. 核心邏輯 (維持 v5.2 的好用功能) ===
+        function processOrder() {
+            if (!isDbLoaded) { alert("請先在上方載入 Excel 對照表！"); return; }
+            
+            const raw = document.getElementById('orderInput').value;
+            if (!raw.trim()) { alert("請先輸入資料！"); return; }
+
+            const lines = raw.trim().split('\n');
+            let studentMap = {};
+            let guideMap = {}; 
+
+            lines.forEach(line => {
+                let parts = line.split(/\t/);
+                if (parts.length < 3) parts = line.split(','); 
+
+                let bookId = parts[0] ? parts[0].trim() : '';
+                let version = parts[1] ? parts[1].trim() : '';
+                
+                // 自動合併輸入
+                let code = bookId;
+                if (version) {
+                    if (!bookId.endsWith(version)) {
+                        code = bookId + version;
+                    }
+                }
+
+                let qty = parts[2] ? parseInt(parts[2].replace(/[^0-9-]/g, '')) : 0;
+                let userMemo = parts[3] ? parts[3].trim() : '';
+
+                if (!code || isNaN(qty) || qty === 0) return;
+
+                if (!studentMap[code]) {
+                    studentMap[code] = {
+                        code: code,
+                        qty: 0,
+                        memoMap: {},
+                        dbInfo: dbData[code] || null
+                    };
+                }
+                studentMap[code].qty += qty;
+                if (userMemo) {
+                    if (!studentMap[code].memoMap[userMemo]) studentMap[code].memoMap[userMemo] = 0;
+                    studentMap[code].memoMap[userMemo] += qty;
+                }
+
+                if (dbData[code] && dbData[code].guide) {
+                    const guideRaw = cleanVal(dbData[code].guide);
+                    if (guideRaw) {
+                        const subGuides = splitGuideCodes(guideRaw); 
+                        subGuides.forEach(sub => {
+                            const subCode = sub.trim();
+                            if(subCode) {
+                                if(!guideMap[subCode]) {
+                                    guideMap[subCode] = { qty: 0, memoMap: {}, sources: new Set() };
+                                }
+                                guideMap[subCode].qty += qty;
+                                guideMap[subCode].sources.add(code);
+                                
+                                if(userMemo) {
+                                    if(!guideMap[subCode].memoMap[userMemo]) guideMap[subCode].memoMap[userMemo] = 0;
+                                    guideMap[subCode].memoMap[userMemo] += qty;
+                                }
+                            }
+                        });
+                    }
+                }
+            });
+
+            finalList = [];
+
+            // A. 學用書列
+            Object.values(studentMap).forEach(item => {
+                const memoStr = Object.entries(item.memoMap).map(([m, c]) => `${m}${c}`).join(' / ');
+                finalList.push({
+                    type: 'student',
+                    col1: item.dbInfo ? item.dbInfo.teacher : '', 
+                    col2: item.dbInfo ? item.dbInfo.teacher2 : '',
+                    qty: item.qty,
+                    memo: memoStr,
+                    student: item.code,
+                    sysMemo: item.dbInfo ? item.dbInfo.sysMemo : ''
+                });
+            });
+
+            // B. 指引書列
+            Object.keys(guideMap).sort().forEach(guideCode => {
+                const guideItem = guideMap[guideCode];
+                const mergedMemo = Object.entries(guideItem.memoMap).map(([m, c]) => `${m}${c}`).join(' / ');
+                const mergedSource = Array.from(guideItem.sources).sort().join(' / ');
+                
+                finalList.push({
+                    type: 'guide',
+                    col1: guideCode, 
+                    col2: '',
+                    qty: guideItem.qty,
+                    memo: mergedMemo, 
+                    student: mergedSource, 
+                    sysMemo: ''
+                });
+            });
+
+            renderOrderTable(finalList);
+            document.getElementById('exportBtn').disabled = false;
+        }
+
+        function renderOrderTable(data) {
+            const tbody = document.getElementById('orderResultBody');
+            tbody.innerHTML = '';
+
+            data.forEach(item => {
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-blue-50 border-b border-gray-100";
+                
+                if (item.type === 'student') {
+                    const isUnknown = !item.col1; 
+                    const unknownClass = isUnknown ? 'text-red-500 font-bold' : 'text-gray-900';
+                    tr.innerHTML = `
+                        <td class="px-3 py-3 text-sm ${unknownClass} bg-blue-50 border-l-4 border-blue-400 font-bold">${cleanVal(item.col1)}</td>
+                        <td class="px-3 py-3 text-sm text-gray-600 bg-blue-50">${cleanVal(item.col2)}</td>
+                        <td class="px-3 py-3 text-red-600 font-bold text-center text-lg">${item.qty}</td>
+                        <td class="px-3 py-3 text-gray-700 font-medium text-sm">${item.memo}</td>
+                        <td class="px-3 py-3 font-bold text-gray-800">${item.student}</td>
+                        <td class="px-3 py-3 text-xs text-gray-400">${cleanVal(item.sysMemo)}</td>
+                    `;
+                } else {
+                    tr.innerHTML = `
+                        <td class="px-3 py-3 text-sm text-blue-700 font-bold bg-yellow-50 border-l-4 border-yellow-400">${item.col1}</td>
+                        <td class="px-3 py-3 bg-gray-50"></td>
+                        <td class="px-3 py-3 text-red-600 font-bold text-center text-lg">${item.qty}</td>
+                        <td class="px-3 py-3 text-gray-600 text-sm italic">${item.memo}</td>
+                        <td class="px-3 py-3 text-sm text-gray-500">${item.student}</td>
+                        <td class="px-3 py-3"></td>
+                    `;
+                }
+                tbody.appendChild(tr);
+            });
+        }
+
+        function exportToExcel() {
+            if (finalList.length === 0) return;
+
+            const sheetData = finalList.map(item => ({
+                "教用1 / 指引": cleanVal(item.col1),
+                "教用2": cleanVal(item.col2),
+                "數量": item.qty,
+                "備註": item.memo,
+                "學用書號 (來源)": item.student,
+                "系統狀態": cleanVal(item.sysMemo)
+            }));
+
+            const wb = XLSX.utils.book_new();
+            const ws = XLSX.utils.json_to_sheet(sheetData);
+            XLSX.utils.book_append_sheet(wb, ws, "撿貨合併總表");
+
+            const date = new Date();
+            const dateStr = `${date.getMonth()+1}月${date.getDate()}日`;
+            XLSX.writeFile(wb, `教用明細_${dateStr}.xlsx`);
+        }
+
+        // === 4. 查詢模式邏輯 ===
+        document.getElementById('searchInput').addEventListener('input', function(e) {
+            if (!isDbLoaded) return;
+            
+            const key = e.target.value.toUpperCase().trim();
+            const tbody = document.getElementById('searchResultBody');
+            tbody.innerHTML = '';
+            if(!key) return;
+
+            const matches = Object.keys(dbData).filter(k => k.includes(key));
+            matches.forEach(k => {
+                const info = dbData[k];
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-gray-50 border-b border-gray-100";
+                
+                tr.innerHTML = `
+                    <td class="px-4 py-2 font-bold text-gray-800">${k}</td>
+                    <td class="px-4 py-2 text-gray-600">${cleanVal(info.teacher)}</td>
+                    <td class="px-4 py-2 text-gray-600">${cleanVal(info.teacher2)}</td>
+                    <td class="px-4 py-2 text-blue-600 font-medium">${cleanVal(info.guide)}</td>
+                    <td class="px-4 py-2 text-gray-400 text-xs">${cleanVal(info.sysMemo)}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        });
+    </script>
+</body>
+</html>
