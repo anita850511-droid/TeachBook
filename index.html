@@ -59,6 +59,26 @@
                             class="block w-full p-3 border border-gray-300 rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm font-mono disabled:bg-gray-100 disabled:cursor-not-allowed"
                             placeholder="請先完成步驟 0 載入資料庫..." disabled></textarea>
                     </div>
+
+                    <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm space-y-2">
+                        <p class="font-bold text-blue-800">輸出選項</p>
+
+                        <label class="flex items-center gap-2">
+                            <input type="checkbox" id="mergeMemoQty" checked>
+                            合併備註和數量
+                        </label>
+
+                        <label class="flex items-center gap-2">
+                            <input type="checkbox" id="includeGuide" checked>
+                            提供授課指引
+                        </label>
+
+                        <label class="flex items-center gap-2">
+                            <input type="checkbox" id="includeSolution" checked>
+                            提供詳解本
+                        </label>
+                    </div>
+
                     <div class="flex space-x-2">
                         <button id="btnProcess" onclick="processOrder()" disabled class="flex-1 bg-gray-400 text-white py-3 rounded-lg font-bold shadow-md cursor-not-allowed transition-all">
                             ⚡ 請先載入資料庫
@@ -160,7 +180,8 @@
                     version:  ['學用', '版次', 'Version', 'Ver', '版別'],   
                     teacher:  ['教用1', '教用', 'Teacher', '教師用書', '教冊', '教用書號'], 
                     teacher2: ['教用2', 'Teacher2', '教用二', '教用書號2'],
-                    guide:    ['授課指引or詳解本', '設課指引or詳解本', '指引', '授課指引', 'Guide', '指引書號'],
+                    guide:    ['授課指引', '指引', 'Guide', '指引書號'],
+                    solution: ['詳解本', '詳解', 'Solution', '解答本'],
                     memo:     ['備註', '系統備註', '狀況', 'Memo', '說明']
                 };
 
@@ -181,18 +202,13 @@
                 let sampleKey = "";
 
                 jsonData.forEach(row => {
-                    // 抓取基礎書號 (並去除 Excel 可能產生的 .0)
                     let rawBaseId = findVal(row, keys.baseId).toString().trim();
-                    let cleanBaseId = rawBaseId.replace(/\.0$/, ''); 
+                    let cleanBaseId = rawBaseId.replace(/\.0$/, '');
 
-                    // 抓取版次
                     let verCode = findVal(row, keys.version).toString().trim();
 
-                    // 組合完整書號 (Key)
                     let fullCode = "";
                     if (cleanBaseId) {
-                        // 如果書號已經包含版次 (例如合併檔的 "59974A")
-                        // 且 verCode (版次欄) 是空的，或是書號結尾不是 verCode (避免重複疊加)
                         if (verCode && !cleanBaseId.endsWith(verCode)) {
                             fullCode = cleanBaseId + verCode;
                         } else {
@@ -201,10 +217,9 @@
                     }
 
                     if (fullCode) {
-                        // --- 2. 處理教用1 (書號 + 教用代碼) ---
                         let teacherRaw = findVal(row, keys.teacher).toString().trim();
                         let finalTeacher = "";
-                        
+
                         if (teacherRaw) {
                             if (!teacherRaw.startsWith(cleanBaseId)) {
                                 finalTeacher = cleanBaseId + teacherRaw;
@@ -214,13 +229,18 @@
                         }
 
                         dbData[fullCode] = {
-                            teacher: finalTeacher, 
+                            teacher: finalTeacher,
                             teacher2: findVal(row, keys.teacher2).toString().trim(),
                             guide: findVal(row, keys.guide).toString().trim(),
+                            solution: findVal(row, keys.solution).toString().trim(),
                             sysMemo: findVal(row, keys.memo).toString().trim()
                         };
+
                         count++;
-                        if(count === 1) sampleKey = fullCode;
+
+                        if (count === 1) {
+                            sampleKey = fullCode;
+                        }
                     }
                 });
 
@@ -298,6 +318,10 @@
         // === 3. 核心邏輯 (維持 v5.2 的好用功能) ===
         function processOrder() {
             if (!isDbLoaded) { alert("請先在上方載入 Excel 對照表！"); return; }
+        
+            const mergeMemoQty = document.getElementById('mergeMemoQty').checked;
+            const includeGuide = document.getElementById('includeGuide').checked;
+            const includeSolution = document.getElementById('includeSolution').checked;
             
             const raw = document.getElementById('orderInput').value;
             if (!raw.trim()) { alert("請先輸入資料！"); return; }
@@ -340,34 +364,50 @@
                     studentMap[code].memoMap[userMemo] += qty;
                 }
 
-                if (dbData[code] && dbData[code].guide) {
-                    const guideRaw = cleanVal(dbData[code].guide);
-                    if (guideRaw) {
-                        const subGuides = splitGuideCodes(guideRaw); 
-                        subGuides.forEach(sub => {
+                const addExtraBook = (rawValue) => {
+                    const extraRaw = cleanVal(rawValue);
+
+                    if (extraRaw) {
+                        const subBooks = splitGuideCodes(extraRaw);
+
+                        subBooks.forEach(sub => {
                             const subCode = sub.trim();
-                            if(subCode) {
-                                if(!guideMap[subCode]) {
+
+                            if (subCode) {
+                                if (!guideMap[subCode]) {
                                     guideMap[subCode] = { qty: 0, memoMap: {}, sources: new Set() };
                                 }
+
                                 guideMap[subCode].qty += qty;
                                 guideMap[subCode].sources.add(code);
-                                
-                                if(userMemo) {
-                                    if(!guideMap[subCode].memoMap[userMemo]) guideMap[subCode].memoMap[userMemo] = 0;
+
+                                if (userMemo) {
+                                    if (!guideMap[subCode].memoMap[userMemo]) guideMap[subCode].memoMap[userMemo] = 0;
                                     guideMap[subCode].memoMap[userMemo] += qty;
                                 }
                             }
                         });
                     }
+                };
+
+                if (dbData[code]) {
+                    if (includeGuide) {
+                        addExtraBook(dbData[code].guide);
+                    }
+
+                    if (includeSolution) {
+                        addExtraBook(dbData[code].solution);
+                    }
                 }
             });
-
+            
             finalList = [];
 
             // A. 學用書列
             Object.values(studentMap).forEach(item => {
-                const memoStr = Object.entries(item.memoMap).map(([m, c]) => `${m}${c}`).join(' / ');
+                const memoStr = Object.entries(item.memoMap)
+                    .map(([m, c]) => mergeMemoQty ? `${m}${c}` : m)
+                    .join(' / ');
                 finalList.push({
                     type: 'student',
                     col1: item.dbInfo ? item.dbInfo.teacher : '', 
@@ -382,7 +422,9 @@
             // B. 指引書列
             Object.keys(guideMap).sort().forEach(guideCode => {
                 const guideItem = guideMap[guideCode];
-                const mergedMemo = Object.entries(guideItem.memoMap).map(([m, c]) => `${m}${c}`).join(' / ');
+                const mergedMemo = Object.entries(guideItem.memoMap)
+                    .map(([m, c]) => mergeMemoQty ? `${m}${c}` : m)
+                    .join(' / ');
                 const mergedSource = Array.from(guideItem.sources).sort().join(' / ');
                 
                 finalList.push({
