@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>泰宇出版 - 教用書版次查詢系統 v5.3 (標題除錯版)</title>
+    <title>泰宇出版 - 教用書版次查詢系統 v6.0</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
@@ -21,25 +21,25 @@
         <div class="bg-white rounded-lg shadow-sm p-6 mb-6 border-l-4 border-blue-600">
             <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
-                    <h1 class="text-2xl font-bold text-gray-800">📦 泰宇出版 - 教用書版次查詢系統 v5.3</h1>
-                    <p class="text-gray-500 mt-1">增強相容性：支援更多標題名稱，並新增「讀取失敗診斷」功能</p>
+                    <h1 class="text-2xl font-bold text-gray-800">泰宇出版 - 教用書版次查詢系統 v6.0</h1>
+                    <p class="text-gray-500 mt-1">新版資料庫格式：支援同一學用書號對應多筆教用/指引/詳解資料</p>
                 </div>
-                
+
                 <div class="bg-yellow-50 p-4 rounded-lg border border-yellow-200 w-full md:w-auto">
                     <label class="block text-sm font-bold text-yellow-800 mb-1">步驟 0：載入書號對照表</label>
-                    <input type="file" id="dbUpload" accept=".xlsx, .xls, .csv" onchange="handleDbUpload(this)" 
+                    <input type="file" id="dbUpload" accept=".xlsx, .xls, .csv" onchange="handleDbUpload(this)"
                         class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-yellow-100 file:text-yellow-700 hover:file:bg-yellow-200 transition-colors">
-                    <p id="dbStatus" class="text-xs text-red-500 mt-1 font-bold">❌ 尚未載入資料庫</p>
+                    <p id="dbStatus" class="text-xs text-red-500 mt-1 font-bold">尚未載入資料庫</p>
                 </div>
             </div>
         </div>
 
         <div class="flex mb-4 bg-white rounded-t-lg border-b border-gray-200 overflow-hidden shadow-sm">
             <button id="tabOrder" onclick="switchTab('order')" class="tab-active flex-1 px-6 py-4 font-bold text-lg focus:outline-none transition-colors">
-                📊 撿貨合併總表 (匯出 Excel)
+                撿貨合併總表 (匯出 Excel)
             </button>
             <button id="tabSearch" onclick="switchTab('search')" class="tab-inactive flex-1 px-6 py-4 font-bold text-lg focus:outline-none transition-colors">
-                🔍 一般查詢模式
+                一般查詢模式
             </button>
         </div>
 
@@ -49,19 +49,24 @@
                     <div>
                         <label class="block text-gray-700 font-bold mb-2">步驟 1：貼上訂單資料 (4欄)</label>
                         <p class="text-xs text-gray-500 mb-2">
-                            請從 Excel 複製<span class="text-red-600 font-bold">四欄</span>資料：<br>
-                            1. <span class="text-blue-600 font-bold">書號</span> (如 59974)<br>
-                            2. <span class="text-purple-600 font-bold">版次</span> (如 A)<br>
+                            請從 Excel 複製四欄資料：<br>
+                            1. <span class="text-blue-600 font-bold">書號</span> (如 2204)<br>
+                            2. <span class="text-purple-600 font-bold">學用版次</span> (如 A)<br>
                             3. <span class="text-red-600 font-bold">數量</span> (數字)<br>
                             4. <span class="text-gray-500 font-bold">備註</span> (選填)
                         </p>
-                        <textarea id="orderInput" rows="12" 
+                        <textarea id="orderInput" rows="12"
                             class="block w-full p-3 border border-gray-300 rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm font-mono disabled:bg-gray-100 disabled:cursor-not-allowed"
                             placeholder="請先完成步驟 0 載入資料庫..." disabled></textarea>
                     </div>
 
                     <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm space-y-2">
                         <p class="font-bold text-blue-800">輸出選項</p>
+
+                        <label class="flex items-center gap-2">
+                            <input type="checkbox" id="includeStudent" checked>
+                            提供課本
+                        </label>
 
                         <label class="flex items-center gap-2">
                             <input type="checkbox" id="mergeMemoQty" checked>
@@ -81,7 +86,7 @@
 
                     <div class="flex space-x-2">
                         <button id="btnProcess" onclick="processOrder()" disabled class="flex-1 bg-gray-400 text-white py-3 rounded-lg font-bold shadow-md cursor-not-allowed transition-all">
-                            ⚡ 請先載入資料庫
+                            請先載入資料庫
                         </button>
                         <button onclick="clearAll()" class="px-4 py-3 bg-gray-200 text-gray-600 rounded-lg hover:bg-gray-300 font-medium">
                             清空
@@ -92,18 +97,17 @@
                 <div class="lg:col-span-2 flex flex-col h-full">
                     <div class="flex justify-between items-end mb-2">
                         <label class="block text-gray-700 font-bold">步驟 2：總撿貨單</label>
-                        <button id="exportBtn" onclick="exportToExcel()" disabled 
+                        <button id="exportBtn" onclick="exportToExcel()" disabled
                             class="bg-green-600 text-white px-6 py-2 rounded-lg font-bold shadow hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center transition-all">
-                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
                             匯出 Excel
                         </button>
                     </div>
-                    
+
                     <div class="flex-1 border border-gray-200 rounded-lg overflow-auto bg-gray-50 relative" style="max-height: 600px;">
                         <table class="min-w-full divide-y divide-gray-200 relative">
                             <thead class="bg-gray-100 sticky top-0 z-10">
                                 <tr>
-                                    <th class="px-3 py-2 text-left text-xs font-bold text-gray-600 bg-blue-50 w-32">教用1 / 指引</th>
+                                    <th class="px-3 py-2 text-left text-xs font-bold text-gray-600 bg-blue-50 w-32">教用1 / 指引 / 詳解</th>
                                     <th class="px-3 py-2 text-left text-xs font-bold text-gray-600 bg-blue-50 w-24">教用2</th>
                                     <th class="px-3 py-2 text-left text-xs font-bold text-red-600 w-16">數量</th>
                                     <th class="px-3 py-2 text-left text-xs font-bold text-gray-600">備註 (含數量)</th>
@@ -127,7 +131,7 @@
         <div id="panelSearch" class="bg-white rounded-b-lg shadow-sm p-6 mb-6 hidden">
             <div class="relative max-w-2xl mx-auto">
                 <input type="text" id="searchInput" disabled
-                    class="block w-full pl-4 pr-3 py-3 border border-gray-300 rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100" 
+                    class="block w-full pl-4 pr-3 py-3 border border-gray-300 rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
                     placeholder="請先載入資料庫...">
             </div>
             <div class="mt-6 overflow-x-auto border rounded-lg">
@@ -137,7 +141,8 @@
                             <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">學用書號</th>
                             <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">教用1</th>
                             <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">教用2</th>
-                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">授課指引/詳解本</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">授課指引</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">詳解本</th>
                             <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">系統備註</th>
                         </tr>
                     </thead>
@@ -149,12 +154,54 @@
     </div>
 
     <script>
-        // === 全域變數 ===
-        let dbData = {}; 
-        let finalList = []; 
+        let dbData = {};
+        let finalList = [];
         let isDbLoaded = false;
 
-        // === 1. 資料庫匯入邏輯 (v5.3 增強相容性與診斷) ===
+        const cleanVal = (val) => {
+            const text = (val ?? '').toString().trim();
+            return (text === '0' || text === '0.0') ? '' : text;
+        };
+
+        const normalizeCode = (val) => cleanVal(val).replace(/\.0$/, '');
+
+        const makeCode = (base, suffix) => {
+            const cleanBase = normalizeCode(base);
+            const cleanSuffix = cleanVal(suffix);
+            if (!cleanBase || !cleanSuffix) return '';
+            return `${cleanBase}${cleanSuffix}`;
+        };
+
+        const makeDisplayCode = (base, suffix) => {
+            const cleanBase = normalizeCode(base);
+            const cleanSuffix = cleanVal(suffix);
+            if (!cleanBase || !cleanSuffix) return '';
+            return `${cleanBase}-${cleanSuffix}`;
+        };
+
+        const uniqueJoin = (values) => {
+            return Array.from(new Set(values.map(cleanVal).filter(Boolean))).join(' / ');
+        };
+
+        const isTextbookCode = (code) => {
+            const match = cleanVal(code).match(/^(\d+)/);
+            if (!match) return false;
+            const num = parseInt(match[1], 10);
+            return (num >= 8201 && num <= 8999) || (num >= 9201 && num <= 9999);
+        };
+
+        const getDbRows = (code) => dbData[code] || [];
+
+        function findVal(row, keyList) {
+            const rowKeys = Object.keys(row);
+            for (const k of keyList) {
+                if (row[k] !== undefined) return row[k];
+                const match = rowKeys.find(rk => rk.trim() === k);
+                if (match) return row[match];
+            }
+            return '';
+        }
+
         function handleDbUpload(input) {
             const file = input.files[0];
             if (!file) return;
@@ -172,114 +219,87 @@
                     return;
                 }
 
-                // --- 1. 定義欄位名稱 (大幅擴充相容性) ---
                 const keys = {
-                    // baseId 現在包含「學用書號」與「學用書號(必要)」以支援合併檔
-                    baseId:   ['學用書號', '學用書號(必要)', '書號', 'Code', '料號', 'ISBN', 'Student'],  
-                    // version 專門對應「學用」欄位 (因為原始檔用「學用」來當作版次欄位名)
-                    version:  ['學用', '版次', 'Version', 'Ver', '版別'],   
-                    teacher:  ['教用1', '教用', 'Teacher', '教師用書', '教冊', '教用書號'], 
-                    teacher2: ['教用2', 'Teacher2', '教用二', '教用書號2'],
-                    guide:    ['授課指引', '指引', 'Guide', '指引書號'],
-                    solution: ['詳解本', '詳解', 'Solution', '解答本'],
-                    memo:     ['備註', '系統備註', '狀況', 'Memo', '說明']
+                    baseId: ['書號', '學用書號', '學用書號(必要)', 'Code', '料號', 'ISBN', 'Student'],
+                    studentVersion: ['學用版次', '學用', '版次', 'Version', 'Ver', '版別'],
+                    teacherVersion1: ['教用版次1', '教用1', '教用', 'Teacher', '教師用書', '教冊', '教用書號'],
+                    teacherVersion2: ['教用版次2', '教用2', 'Teacher2', '教用二', '教用書號2'],
+                    guideBase1: ['授課指引書號1', '指引書號1', '授課指引1書號'],
+                    guideVersion1: ['授課指引版次1', '指引版次1', '授課指引1版次'],
+                    guideBase2: ['授課指引書號2', '指引書號2', '授課指引2書號'],
+                    guideVersion2: ['授課指引版次2', '指引版次2', '授課指引2版次'],
+                    solutionVersion1: ['詳解本版次1', '詳解版次1', '詳解本1版次'],
+                    solutionVersion2: ['詳解本版次2', '詳解版次2', '詳解本2版次'],
+                    memo: ['備註', '系統備註', '狀況', 'Memo', '說明']
                 };
 
-                const findVal = (row, keyList) => {
-                    const rowKeys = Object.keys(row);
-                    for (let k of keyList) {
-                        // 1. 完全比對
-                        if (row[k] !== undefined) return row[k];
-                        // 2. 去空白後比對
-                        const match = rowKeys.find(rk => rk.trim() === k);
-                        if (match) return row[match];
-                    }
-                    return '';
-                };
-                
                 dbData = {};
-                let count = 0;
+                let rowCount = 0;
+                let keyCount = 0;
                 let sampleKey = "";
 
                 jsonData.forEach(row => {
-                    let rawBaseId = findVal(row, keys.baseId).toString().trim();
-                    let cleanBaseId = rawBaseId.replace(/\.0$/, '');
+                    const baseId = findVal(row, keys.baseId);
+                    const studentVersion = findVal(row, keys.studentVersion);
+                    const fullCode = makeCode(baseId, studentVersion);
+                    if (!fullCode) return;
 
-                    let verCode = findVal(row, keys.version).toString().trim();
-
-                    let fullCode = "";
-                    if (cleanBaseId) {
-                        if (verCode && !cleanBaseId.endsWith(verCode)) {
-                            fullCode = cleanBaseId + verCode;
-                        } else {
-                            fullCode = cleanBaseId;
-                        }
+                    if (!dbData[fullCode]) {
+                        dbData[fullCode] = [];
+                        keyCount++;
                     }
 
-                    if (fullCode) {
-                        let teacherRaw = findVal(row, keys.teacher).toString().trim();
-                        let finalTeacher = "";
+                    const solutionVersion1 = findVal(row, keys.solutionVersion1);
+                    const solutionVersion2 = findVal(row, keys.solutionVersion2);
 
-                        if (teacherRaw) {
-                            if (!teacherRaw.startsWith(cleanBaseId)) {
-                                finalTeacher = cleanBaseId + teacherRaw;
-                            } else {
-                                finalTeacher = teacherRaw;
-                            }
-                        }
+                    const dbRow = {
+                        teacher: makeCode(baseId, findVal(row, keys.teacherVersion1)),
+                        teacher2: makeCode(baseId, findVal(row, keys.teacherVersion2)),
+                        guide: makeCode(findVal(row, keys.guideBase1), findVal(row, keys.guideVersion1)),
+                        guide2: makeCode(findVal(row, keys.guideBase2), findVal(row, keys.guideVersion2)),
+                        solution: makeCode(baseId, solutionVersion1),
+                        solution2: makeCode(baseId, solutionVersion2),
+                        solutionDisplay: makeDisplayCode(baseId, solutionVersion1),
+                        solutionDisplay2: makeDisplayCode(baseId, solutionVersion2),
+                        sysMemo: cleanVal(findVal(row, keys.memo))
+                    };
 
-                        dbData[fullCode] = {
-                            teacher: finalTeacher,
-                            teacher2: findVal(row, keys.teacher2).toString().trim(),
-                            guide: findVal(row, keys.guide).toString().trim(),
-                            solution: findVal(row, keys.solution).toString().trim(),
-                            sysMemo: findVal(row, keys.memo).toString().trim()
-                        };
+                    dbData[fullCode].push(dbRow);
+                    rowCount++;
 
-                        count++;
-
-                        if (count === 1) {
-                            sampleKey = fullCode;
-                        }
-                    }
+                    if (!sampleKey) sampleKey = fullCode;
                 });
 
-                // --- 3. 結果診斷與回報 ---
                 const statusElem = document.getElementById('dbStatus');
-                
-                if (count > 0) {
-                    // 成功
+
+                if (rowCount > 0) {
                     isDbLoaded = true;
-                    statusElem.innerHTML = `✅ 已載入 ${count} 筆資料`;
+                    statusElem.innerHTML = `已載入 ${rowCount} 筆資料，${keyCount} 組學用書號`;
                     statusElem.className = "text-xs text-green-600 mt-1 font-bold";
-                    
+
                     document.getElementById('orderInput').disabled = false;
-                    document.getElementById('orderInput').placeholder = "格式範例：\n59974\tA\t5\t急件\n2204\tA\t3\t(自動組合)";
+                    document.getElementById('orderInput').placeholder = "格式範例：\n2204\tA\t5\t急件\n2228\tA(3/1)\t3\t";
                     document.getElementById('searchInput').disabled = false;
-                    document.getElementById('searchInput').placeholder = "輸入書號查詢...";
-                    
+                    document.getElementById('searchInput').placeholder = "輸入書號查詢，例如 2204A...";
+
                     const btnProcess = document.getElementById('btnProcess');
                     btnProcess.disabled = false;
                     btnProcess.className = "flex-1 bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 font-bold shadow-md transition-transform transform active:scale-95";
-                    btnProcess.innerText = "⚡ 開始分析與拆單";
+                    btnProcess.innerText = "開始分析與拆單";
 
-                    alert(`成功匯入 ${count} 筆資料！\n\n[系統測試]\n第一筆書號為：${sampleKey}\n(若查詢不到資料，請檢查此書號格式是否符合預期)`);
+                    alert(`成功匯入 ${rowCount} 筆資料！\n\n共有 ${keyCount} 組學用書號。\n第一筆書號為：${sampleKey}`);
                 } else {
-                    // 失敗：進行診斷
                     isDbLoaded = false;
-                    statusElem.innerHTML = `⚠️ 讀取失敗 (0筆)`;
+                    statusElem.innerHTML = `讀取失敗 (0筆)`;
                     statusElem.className = "text-xs text-red-600 mt-1 font-bold";
 
-                    // 抓出檔案實際的標題，幫使用者除錯
-                    const actualHeaders = jsonData.length > 0 ? Object.keys(jsonData[0]).join(", ") : "無法識別";
-                    
-                    alert(`❌ 匯入失敗！系統找不到有效的「書號」欄位。\n\n[系統診斷]\n您檔案中的標題是：\n${actualHeaders}\n\n[解決方法]\n1. 請確認標題沒有亂碼 (建議另存為 .xlsx)\n2. 請確認包含以下任一關鍵字：書號, 學用書號, Code`);
+                    const actualHeaders = Object.keys(jsonData[0] || {}).join(", ") || "無法識別";
+                    alert(`匯入失敗！系統找不到有效的「書號 + 學用版次」欄位。\n\n檔案中的標題是：\n${actualHeaders}\n\n請確認包含「書號」與「學用版次」。`);
                 }
             };
             reader.readAsArrayBuffer(file);
         }
 
-        // === 2. 介面切換與基礎功能 ===
         function switchTab(tab) {
             const orderBtn = document.getElementById('tabOrder');
             const searchBtn = document.getElementById('tabSearch');
@@ -306,47 +326,59 @@
             finalList = [];
         }
 
-        const cleanVal = (val) => (val === '0' || val === '0.0' || !val) ? '' : val;
+        function addExtraBook(extraMap, rawValue, qty, userMemo, sourceCode, displayValue, exportParts) {
+            const extraCode = cleanVal(rawValue);
+            if (!extraCode) return;
 
-        function splitGuideCodes(rawString) {
-            if (!rawString) return [];
-            const protectedString = rawString.replace(/\+勘/g, '{{KAN}}');
-            const parts = protectedString.split('+');
-            return parts.map(p => p.trim().replace(/{{KAN}}/g, '+勘')).filter(p => p);
+            if (!extraMap[extraCode]) {
+                extraMap[extraCode] = {
+                    qty: 0,
+                    memoMap: {},
+                    sources: new Set(),
+                    displayCode: cleanVal(displayValue) || extraCode,
+                    exportParts: exportParts || null
+                };
+            }
+
+            extraMap[extraCode].qty += qty;
+            extraMap[extraCode].sources.add(sourceCode);
+
+            if (userMemo) {
+                if (!extraMap[extraCode].memoMap[userMemo]) extraMap[extraCode].memoMap[userMemo] = 0;
+                extraMap[extraCode].memoMap[userMemo] += qty;
+            }
         }
 
-        // === 3. 核心邏輯 (維持 v5.2 的好用功能) ===
+        function formatMemo(memoMap, mergeMemoQty) {
+            return Object.entries(memoMap)
+                .map(([m, c]) => mergeMemoQty ? `${m}${c}` : m)
+                .join(' / ');
+        }
+
         function processOrder() {
             if (!isDbLoaded) { alert("請先在上方載入 Excel 對照表！"); return; }
-        
+
             const mergeMemoQty = document.getElementById('mergeMemoQty').checked;
+            const includeStudent = document.getElementById('includeStudent').checked;
             const includeGuide = document.getElementById('includeGuide').checked;
             const includeSolution = document.getElementById('includeSolution').checked;
-            
+
             const raw = document.getElementById('orderInput').value;
             if (!raw.trim()) { alert("請先輸入資料！"); return; }
 
             const lines = raw.trim().split('\n');
-            let studentMap = {};
-            let guideMap = {}; 
+            const studentMap = {};
+            const extraMap = {};
 
             lines.forEach(line => {
                 let parts = line.split(/\t/);
-                if (parts.length < 3) parts = line.split(','); 
+                if (parts.length < 3) parts = line.split(',');
 
-                let bookId = parts[0] ? parts[0].trim() : '';
-                let version = parts[1] ? parts[1].trim() : '';
-                
-                // 自動合併輸入
-                let code = bookId;
-                if (version) {
-                    if (!bookId.endsWith(version)) {
-                        code = bookId + version;
-                    }
-                }
-
-                let qty = parts[2] ? parseInt(parts[2].replace(/[^0-9-]/g, '')) : 0;
-                let userMemo = parts[3] ? parts[3].trim() : '';
+                const bookId = parts[0] ? parts[0].trim() : '';
+                const version = parts[1] ? parts[1].trim() : '';
+                const code = version && !bookId.endsWith(version) ? `${bookId}${version}` : bookId;
+                const qty = parts[2] ? parseInt(parts[2].replace(/[^0-9-]/g, '')) : 0;
+                const userMemo = parts[3] ? parts[3].trim() : '';
 
                 if (!code || isNaN(qty) || qty === 0) return;
 
@@ -355,91 +387,86 @@
                         code: code,
                         qty: 0,
                         memoMap: {},
-                        dbInfo: dbData[code] || null
+                        dbRows: getDbRows(code)
                     };
                 }
+
                 studentMap[code].qty += qty;
                 if (userMemo) {
                     if (!studentMap[code].memoMap[userMemo]) studentMap[code].memoMap[userMemo] = 0;
                     studentMap[code].memoMap[userMemo] += qty;
                 }
 
-                const addExtraBook = (rawValue) => {
-                    const extraRaw = cleanVal(rawValue);
+                const dbRows = getDbRows(code);
+                const addedForThisLine = new Set();
 
-                    if (extraRaw) {
-                        const subBooks = splitGuideCodes(extraRaw);
-
-                        subBooks.forEach(sub => {
-                            const subCode = sub.trim();
-
-                            if (subCode) {
-                                if (!guideMap[subCode]) {
-                                    guideMap[subCode] = { qty: 0, memoMap: {}, sources: new Set() };
-                                }
-
-                                guideMap[subCode].qty += qty;
-                                guideMap[subCode].sources.add(code);
-
-                                if (userMemo) {
-                                    if (!guideMap[subCode].memoMap[userMemo]) guideMap[subCode].memoMap[userMemo] = 0;
-                                    guideMap[subCode].memoMap[userMemo] += qty;
-                                }
-                            }
-                        });
-                    }
-                };
-
-                if (dbData[code]) {
+                dbRows.forEach(dbRow => {
+                    const candidates = [];
                     if (includeGuide) {
-                        addExtraBook(dbData[code].guide);
+                        candidates.push(
+                            { exportCode: dbRow.guide, displayCode: dbRow.guide },
+                            { exportCode: dbRow.guide2, displayCode: dbRow.guide2 }
+                        );
                     }
-
                     if (includeSolution) {
-                        addExtraBook(dbData[code].solution);
+                        candidates.push(
+                            {
+                                exportCode: dbRow.solution,
+                                displayCode: dbRow.solutionDisplay,
+                                exportParts: splitExportCode(dbRow.solutionDisplay)
+                            },
+                            {
+                                exportCode: dbRow.solution2,
+                                displayCode: dbRow.solutionDisplay2,
+                                exportParts: splitExportCode(dbRow.solutionDisplay2)
+                            }
+                        );
                     }
-                }
-            });
-            
-            finalList = [];
 
-            // A. 學用書列
-            Object.values(studentMap).forEach(item => {
-                const memoStr = Object.entries(item.memoMap)
-                    .map(([m, c]) => mergeMemoQty ? `${m}${c}` : m)
-                    .join(' / ');
-                finalList.push({
-                    type: 'student',
-                    col1: item.dbInfo ? item.dbInfo.teacher : '', 
-                    col2: item.dbInfo ? item.dbInfo.teacher2 : '',
-                    qty: item.qty,
-                    memo: memoStr,
-                    student: item.code,
-                    sysMemo: item.dbInfo ? item.dbInfo.sysMemo : ''
+                    candidates.filter(item => cleanVal(item.exportCode)).forEach(item => {
+                        const extraCode = cleanVal(item.exportCode);
+                        const lineKey = `${code}::${extraCode}`;
+                        if (addedForThisLine.has(lineKey)) return;
+                        addedForThisLine.add(lineKey);
+                        addExtraBook(extraMap, extraCode, qty, userMemo, code, item.displayCode, item.exportParts);
+                    });
                 });
             });
 
-            // B. 指引書列
-            Object.keys(guideMap).sort().forEach(guideCode => {
-                const guideItem = guideMap[guideCode];
-                const mergedMemo = Object.entries(guideItem.memoMap)
-                    .map(([m, c]) => mergeMemoQty ? `${m}${c}` : m)
-                    .join(' / ');
-                const mergedSource = Array.from(guideItem.sources).sort().join(' / ');
-                
+            finalList = [];
+
+            Object.values(studentMap).forEach(item => {
+                if (!includeStudent && isTextbookCode(item.code)) return;
+
+                const rows = item.dbRows;
                 finalList.push({
-                    type: 'guide',
-                    col1: guideCode, 
+                    type: 'student',
+                    col1: uniqueJoin(rows.map(row => row.teacher)),
+                    col2: uniqueJoin(rows.map(row => row.teacher2)),
+                    qty: item.qty,
+                    memo: formatMemo(item.memoMap, mergeMemoQty),
+                    student: item.code,
+                    sysMemo: uniqueJoin(rows.map(row => row.sysMemo))
+                });
+            });
+
+            Object.keys(extraMap).sort().forEach(extraCode => {
+                const extraItem = extraMap[extraCode];
+                finalList.push({
+                    type: 'extra',
+                    col1: extraItem.displayCode,
+                    exportCol1: extraCode,
+                    exportParts1: extraItem.exportParts,
                     col2: '',
-                    qty: guideItem.qty,
-                    memo: mergedMemo, 
-                    student: mergedSource, 
+                    qty: extraItem.qty,
+                    memo: formatMemo(extraItem.memoMap, mergeMemoQty),
+                    student: Array.from(extraItem.sources).sort().join(' / '),
                     sysMemo: ''
                 });
             });
 
             renderOrderTable(finalList);
-            document.getElementById('exportBtn').disabled = false;
+            document.getElementById('exportBtn').disabled = finalList.length === 0;
         }
 
         function renderOrderTable(data) {
@@ -449,9 +476,9 @@
             data.forEach(item => {
                 const tr = document.createElement('tr');
                 tr.className = "hover:bg-blue-50 border-b border-gray-100";
-                
+
                 if (item.type === 'student') {
-                    const isUnknown = !item.col1; 
+                    const isUnknown = !item.col1;
                     const unknownClass = isUnknown ? 'text-red-500 font-bold' : 'text-gray-900';
                     tr.innerHTML = `
                         <td class="px-3 py-3 text-sm ${unknownClass} bg-blue-50 border-l-4 border-blue-400 font-bold">${cleanVal(item.col1)}</td>
@@ -475,20 +502,74 @@
             });
         }
 
+        function splitExportCode(rawCode) {
+            const code = cleanVal(rawCode);
+            if (!code) return { bookNo: '', version: '', correction: '' };
+
+            const match = code.match(/^(\d+)-?(.*)$/);
+
+            if (!match) {
+                return { bookNo: code, version: '', correction: '' };
+            }
+
+            const rest = match[2];
+            const correctionStarts = [rest.indexOf('('), rest.indexOf('+勘')]
+                .filter(index => index >= 0);
+            const correctionIndex = correctionStarts.length ? Math.min(...correctionStarts) : -1;
+
+            return {
+                bookNo: match[1],
+                version: correctionIndex >= 0 ? rest.slice(0, correctionIndex) : rest,
+                correction: correctionIndex >= 0 ? rest.slice(correctionIndex) : ''
+            };
+        }
+
+        function splitExportCodeList(rawCodes) {
+            const parts = cleanVal(rawCodes).split(' / ').map(cleanVal).filter(Boolean);
+            const parsed = parts.map(splitExportCode);
+
+            return {
+                bookNo: uniqueJoin(parsed.map(item => item.bookNo)),
+                version: uniqueJoin(parsed.map(item => item.version)),
+                correction: uniqueJoin(parsed.map(item => item.correction))
+            };
+        }
+
         function exportToExcel() {
             if (finalList.length === 0) return;
 
-            const sheetData = finalList.map(item => ({
-                "教用1 / 指引": cleanVal(item.col1),
-                "教用2": cleanVal(item.col2),
+            const sheetData = finalList.map(item => {
+                const code1 = item.exportParts1 || splitExportCodeList(item.exportCol1 || item.col1);
+                const code2 = splitExportCodeList(item.col2);
+
+                return {
+                "教用書號_1": code1.bookNo,
+                "教用版次_1": code1.version,
                 "數量": item.qty,
+                "刷次加勘誤_1": code1.correction,
+                "教用書號_2": code2.bookNo,
+                "教用版次_2": code2.version,
+                "刷次加勘誤_2": code2.correction,
                 "備註": item.memo,
                 "學用書號 (來源)": item.student,
                 "系統狀態": cleanVal(item.sysMemo)
-            }));
+                };
+            });
 
             const wb = XLSX.utils.book_new();
             const ws = XLSX.utils.json_to_sheet(sheetData);
+            ws['!cols'] = [
+                { wch: 14 },
+                { wch: 12 },
+                { wch: 8 },
+                { wch: 14 },
+                { wch: 14 },
+                { wch: 12 },
+                { wch: 14 },
+                { wch: 24 },
+                { wch: 28 },
+                { wch: 48 }
+            ];
             XLSX.utils.book_append_sheet(wb, ws, "撿貨合併總表");
 
             const date = new Date();
@@ -496,29 +577,30 @@
             XLSX.writeFile(wb, `教用明細_${dateStr}.xlsx`);
         }
 
-        // === 4. 查詢模式邏輯 ===
         document.getElementById('searchInput').addEventListener('input', function(e) {
             if (!isDbLoaded) return;
-            
+
             const key = e.target.value.toUpperCase().trim();
             const tbody = document.getElementById('searchResultBody');
             tbody.innerHTML = '';
-            if(!key) return;
+            if (!key) return;
 
-            const matches = Object.keys(dbData).filter(k => k.includes(key));
+            const matches = Object.keys(dbData).filter(k => k.toUpperCase().includes(key));
             matches.forEach(k => {
-                const info = dbData[k];
-                const tr = document.createElement('tr');
-                tr.className = "hover:bg-gray-50 border-b border-gray-100";
-                
-                tr.innerHTML = `
-                    <td class="px-4 py-2 font-bold text-gray-800">${k}</td>
-                    <td class="px-4 py-2 text-gray-600">${cleanVal(info.teacher)}</td>
-                    <td class="px-4 py-2 text-gray-600">${cleanVal(info.teacher2)}</td>
-                    <td class="px-4 py-2 text-blue-600 font-medium">${cleanVal(info.guide)}</td>
-                    <td class="px-4 py-2 text-gray-400 text-xs">${cleanVal(info.sysMemo)}</td>
-                `;
-                tbody.appendChild(tr);
+                dbData[k].forEach(info => {
+                    const tr = document.createElement('tr');
+                    tr.className = "hover:bg-gray-50 border-b border-gray-100";
+
+                    tr.innerHTML = `
+                        <td class="px-4 py-2 font-bold text-gray-800">${k}</td>
+                        <td class="px-4 py-2 text-gray-600">${cleanVal(info.teacher)}</td>
+                        <td class="px-4 py-2 text-gray-600">${cleanVal(info.teacher2)}</td>
+                        <td class="px-4 py-2 text-blue-600 font-medium">${uniqueJoin([info.guide, info.guide2])}</td>
+                        <td class="px-4 py-2 text-blue-600 font-medium">${uniqueJoin([info.solutionDisplay, info.solutionDisplay2])}</td>
+                        <td class="px-4 py-2 text-gray-400 text-xs">${cleanVal(info.sysMemo)}</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
             });
         });
     </script>
