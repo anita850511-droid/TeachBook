@@ -179,6 +179,12 @@
             return `${cleanBase}-${cleanSuffix}`;
         };
 
+        const makeTeacherCode = (base, suffix) => {
+            const cleanSuffix = cleanVal(suffix);
+            if (!cleanSuffix) return '';
+            return /^\d/.test(cleanSuffix) ? makeDisplayCode(base, cleanSuffix) : makeCode(base, cleanSuffix);
+        };
+
         const uniqueJoin = (values) => {
             return Array.from(new Set(values.map(cleanVal).filter(Boolean))).join(' / ');
         };
@@ -249,12 +255,16 @@
                         keyCount++;
                     }
 
+                    const teacherVersion1 = findVal(row, keys.teacherVersion1);
+                    const teacherVersion2 = findVal(row, keys.teacherVersion2);
                     const solutionVersion1 = findVal(row, keys.solutionVersion1);
                     const solutionVersion2 = findVal(row, keys.solutionVersion2);
 
                     const dbRow = {
-                        teacher: makeCode(baseId, findVal(row, keys.teacherVersion1)),
-                        teacher2: makeCode(baseId, findVal(row, keys.teacherVersion2)),
+                        teacher: makeTeacherCode(baseId, teacherVersion1),
+                        teacher2: makeTeacherCode(baseId, teacherVersion2),
+                        teacherExportParts: splitExportCode(makeTeacherCode(baseId, teacherVersion1)),
+                        teacherExportParts2: splitExportCode(makeTeacherCode(baseId, teacherVersion2)),
                         guide: makeCode(findVal(row, keys.guideBase1), findVal(row, keys.guideVersion1)),
                         guide2: makeCode(findVal(row, keys.guideBase2), findVal(row, keys.guideVersion2)),
                         solution: makeCode(baseId, solutionVersion1),
@@ -438,15 +448,44 @@
             Object.values(studentMap).forEach(item => {
                 if (!includeStudent && isTextbookCode(item.code)) return;
 
-                const rows = item.dbRows;
-                finalList.push({
-                    type: 'student',
-                    col1: uniqueJoin(rows.map(row => row.teacher)),
-                    col2: uniqueJoin(rows.map(row => row.teacher2)),
-                    qty: item.qty,
-                    memo: formatMemo(item.memoMap, mergeMemoQty),
-                    student: item.code,
-                    sysMemo: uniqueJoin(rows.map(row => row.sysMemo))
+                const rows = item.dbRows.length ? item.dbRows : [{
+                    teacher: '',
+                    teacher2: '',
+                    teacherExportParts: null,
+                    teacherExportParts2: null,
+                    sysMemo: ''
+                }];
+                const teacherGroups = {};
+
+                rows.forEach(row => {
+                    const groupKey = `${cleanVal(row.teacher)}||${cleanVal(row.teacher2)}`;
+                    if (!teacherGroups[groupKey]) {
+                        teacherGroups[groupKey] = {
+                            teacher: cleanVal(row.teacher),
+                            teacher2: cleanVal(row.teacher2),
+                            exportParts1: row.teacherExportParts || null,
+                            exportParts2: row.teacherExportParts2 || null,
+                            sysMemos: []
+                        };
+                    }
+
+                    if (cleanVal(row.sysMemo)) {
+                        teacherGroups[groupKey].sysMemos.push(cleanVal(row.sysMemo));
+                    }
+                });
+
+                Object.values(teacherGroups).forEach(group => {
+                    finalList.push({
+                        type: 'student',
+                        col1: group.teacher,
+                        col2: group.teacher2,
+                        exportParts1: group.exportParts1,
+                        exportParts2: group.exportParts2,
+                        qty: item.qty,
+                        memo: formatMemo(item.memoMap, mergeMemoQty),
+                        student: item.code,
+                        sysMemo: uniqueJoin(group.sysMemos)
+                    });
                 });
             });
 
@@ -540,7 +579,7 @@
 
             const sheetData = finalList.map(item => {
                 const code1 = item.exportParts1 || splitExportCodeList(item.exportCol1 || item.col1);
-                const code2 = splitExportCodeList(item.col2);
+                const code2 = item.exportParts2 || splitExportCodeList(item.col2);
 
                 return {
                 "教用書號_1": code1.bookNo,
